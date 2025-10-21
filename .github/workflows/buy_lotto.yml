@@ -1,7 +1,7 @@
 name: Buy lotto
 on:
   schedule:
-    - cron: 30 0 * * 1 # every Monday on 09:00 AM (KST)
+    - cron: 30 0 * * 1 # every Monday on 09:30 AM (KST)
   workflow_dispatch:
 
 jobs:
