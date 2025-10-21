@@ -1,7 +1,7 @@
 name: Check Winning
 on:
   schedule:
-    - cron: 0 14 * * 6 # every Saturday on 11:00 PM (KST)
+    - cron: 30 12 * * 6 # every Saturday on 9:30 PM (KST)
   workflow_dispatch:
 
 jobs:
