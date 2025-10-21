@@ -1,4 +1,4 @@
-name: Check Winning
+name: Check Winning Sub
 on:
   schedule:
     - cron: 30 12 * * 6 # every Saturday on 9:30 PM (KST)
@@ -7,7 +7,7 @@ on:
 jobs:
   build:
     runs-on: [ubuntu-latest]
-    name: Check Winning
+    name: Check Winning Sub
     steps:  
 
       - uses: actions/checkout@v3    
