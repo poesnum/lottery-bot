@@ -1,7 +1,7 @@
 name: Buy lotto Sub
 on:
   schedule:
-    - cron: 3 0 * * 1 # every Monday on 09:03 AM (KST)
+    - cron: 33 0 * * 1 # every Monday on 09:33 AM (KST)
   workflow_dispatch:
 
 jobs:
