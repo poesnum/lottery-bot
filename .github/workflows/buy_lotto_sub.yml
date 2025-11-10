@@ -23,6 +23,7 @@ jobs:
           USERNAME: ${{ secrets.USERNAME_SUB }}
           PASSWORD: ${{ secrets.PASSWORD_SUB }}
           COUNT: ${{ secrets.COUNT }}
+          LOTTO_STRATEGY: SUPERSTITION  # AUTO 또는 SUPERSTITION
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           DISCORD_WEBHOOK_URL:  ${{ secrets.DISCORD_WEBHOOK_URL }}

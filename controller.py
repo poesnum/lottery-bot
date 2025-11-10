@@ -65,26 +65,32 @@ def check():
     response = check_winning_win720(globalAuthCtrl)
     send_message(0, 1, response=response, webhook_url=discord_webhook_url)
 
-def buy(): 
-    
-    load_dotenv() 
+def buy():
+
+    load_dotenv()
 
     username = os.environ.get('USERNAME')
     password = os.environ.get('PASSWORD')
     count = int(os.environ.get('COUNT'))
-    slack_webhook_url = os.environ.get('SLACK_WEBHOOK_URL') 
+    slack_webhook_url = os.environ.get('SLACK_WEBHOOK_URL')
     discord_webhook_url = os.environ.get('DISCORD_WEBHOOK_URL')
-    mode = "AUTO"
+
+    # 전략 모드 선택 (환경변수로 설정 가능)
+    # AUTO: 완전 자동
+    # SUPERSTITION: 미신 전략 (지난주 구매번호 제외 + 당첨번호 고정)
+    mode = os.environ.get('LOTTO_STRATEGY', 'AUTO').upper()
+
+    print(f"[구매 시작] 전략 모드: {mode}")
 
     globalAuthCtrl = auth.AuthController()
     globalAuthCtrl.login(username, password)
 
-    response = buy_lotto645(globalAuthCtrl, count, mode) 
+    response = buy_lotto645(globalAuthCtrl, count, mode)
     send_message(1, 0, response=response, webhook_url=discord_webhook_url)
 
     time.sleep(10)
 
-    response = buy_win720(globalAuthCtrl, username) 
+    response = buy_win720(globalAuthCtrl, username)
     send_message(1, 1, response=response, webhook_url=discord_webhook_url)
 
 def run():
