@@ -1,5 +1,6 @@
 import os
 import sys
+import random
 from dotenv import load_dotenv
 
 import auth
@@ -49,6 +50,12 @@ def send_message(mode: int, lottery_type: int, response: dict, webhook_url: str,
 def check():
     load_dotenv()
 
+    # 서버 부하 분산을 위한 랜덤 딜레이 (0~300초, 즉 0~5분)
+    # 많은 사용자가 동시에 사용해도 트래픽이 분산됩니다
+    random_delay = random.randint(0, 300)
+    print(f"[서버 부하 분산] {random_delay}초 후 당첨 확인 시작... (DDoS 방지)")
+    time.sleep(random_delay)
+
     username = os.environ.get('USERNAME')
     password = os.environ.get('PASSWORD')
     slack_webhook_url = os.environ.get('SLACK_WEBHOOK_URL')
@@ -68,6 +75,12 @@ def check():
 def buy():
 
     load_dotenv()
+
+    # 서버 부하 분산을 위한 랜덤 딜레이 (0~300초, 즉 0~5분)
+    # 많은 사용자가 동시에 사용해도 트래픽이 분산됩니다
+    random_delay = random.randint(0, 300)
+    print(f"[서버 부하 분산] {random_delay}초 후 구매 시작... (DDoS 방지)")
+    time.sleep(random_delay)
 
     username = os.environ.get('USERNAME')
     password = os.environ.get('PASSWORD')
