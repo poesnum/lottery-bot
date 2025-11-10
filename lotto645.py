@@ -1,5 +1,6 @@
 import datetime
 import json
+import random
 
 from datetime import timedelta
 from enum import Enum
@@ -12,7 +13,8 @@ from HttpClient import HttpClientSingleton
 class Lotto645Mode(Enum):
     AUTO = 1
     MANUAL = 2
-    BUY = 10 
+    SUPERSTITION = 3  # 미신 전략 모드
+    BUY = 10
     CHECK = 20
 
 class Lotto645:
@@ -39,9 +41,9 @@ class Lotto645:
         self.http_client = HttpClientSingleton.get_instance()
 
     def buy_lotto645(
-        self, 
-        auth_ctrl: auth.AuthController, 
-        cnt: int, 
+        self,
+        auth_ctrl: auth.AuthController,
+        cnt: int,
         mode: Lotto645Mode
     ) -> dict:
         assert type(auth_ctrl) == auth.AuthController
@@ -51,11 +53,12 @@ class Lotto645:
         headers = self._generate_req_headers(auth_ctrl)
         requirements = self._getRequirements(headers)
 
-        data = (
-            self._generate_body_for_auto_mode(cnt, requirements)
-            if mode == Lotto645Mode.AUTO
-            else self._generate_body_for_manual(cnt)
-        )
+        if mode == Lotto645Mode.AUTO:
+            data = self._generate_body_for_auto_mode(cnt, requirements)
+        elif mode == Lotto645Mode.SUPERSTITION:
+            data = self._generate_body_for_superstition(auth_ctrl, cnt, requirements)
+        else:
+            data = self._generate_body_for_manual(cnt)
 
         body = self._try_buying(headers, data)
 
@@ -90,6 +93,81 @@ class Lotto645:
             ),
             'ROUND_DRAW_DATE' : requirements[1],
             'WAMT_PAY_TLMT_END_DT' : requirements[2],
+            "gameCnt": cnt
+        }
+
+    def _generate_body_for_superstition(
+        self,
+        auth_ctrl: auth.AuthController,
+        cnt: int,
+        requirements: list
+    ) -> dict:
+        """
+        옵션 C: 혼합 전략
+        - 내가 지난주에 구매한 번호는 제외
+        - 지난주 당첨번호 중 하나를 각 게임마다 다르게 고정
+        - 나머지는 랜덤 선택
+        """
+        assert type(cnt) == int and 1 <= cnt <= 5
+
+        SLOTS = ["A", "B", "C", "D", "E"]
+
+        # 1. 지난주 구매한 번호 조회 (제외할 번호)
+        my_last_numbers = set(self.get_my_last_week_numbers(auth_ctrl))
+        print(f"[미신 전략] 지난주 구매 번호 (제외): {sorted(my_last_numbers)}")
+
+        # 2. 지난주 당첨 번호 조회
+        current_round = int(self._get_round())
+        last_round = current_round - 1
+        winning_data = self.get_winning_numbers(last_round)
+        winning_pool = winning_data.get("all", [])
+
+        if not winning_pool:
+            print("[미신 전략] 당첨번호 조회 실패, AUTO 모드로 대체")
+            return self._generate_body_for_auto_mode(cnt, requirements)
+
+        print(f"[미신 전략] 지난주 당첨번호: {winning_pool}")
+
+        # 3. 선택 가능한 번호 풀 (1~45 중 내가 산 번호 제외)
+        available_numbers = [n for n in range(1, 46) if n not in my_last_numbers]
+
+        # 4. 각 게임마다 번호 생성
+        games = []
+        for i in range(cnt):
+            # 각 게임마다 다른 당첨번호를 고정
+            fixed_number = winning_pool[i % len(winning_pool)]
+
+            # 고정 번호가 제외 리스트에 있어도 포함시킴 (당첨번호니까!)
+            if fixed_number not in available_numbers:
+                current_pool = available_numbers + [fixed_number]
+            else:
+                current_pool = available_numbers.copy()
+
+            # 고정번호 1개 + 랜덤 5개 선택
+            remaining_pool = [n for n in current_pool if n != fixed_number]
+
+            if len(remaining_pool) < 5:
+                print(f"[미신 전략] 선택 가능한 번호 부족, AUTO 모드로 대체")
+                return self._generate_body_for_auto_mode(cnt, requirements)
+
+            selected_numbers = [fixed_number] + random.sample(remaining_pool, 5)
+            selected_numbers.sort()
+
+            games.append({
+                "genType": "1",  # 수동 모드
+                "arrGameChoiceNum": selected_numbers,
+                "alpabet": SLOTS[i]
+            })
+
+            print(f"[미신 전략] {SLOTS[i]}게임: {selected_numbers} (고정: {fixed_number})")
+
+        return {
+            "round": self._get_round(),
+            "direct": requirements[0],
+            "nBuyAmount": str(1000 * cnt),
+            "param": json.dumps(games),
+            'ROUND_DRAW_DATE': requirements[1],
+            'WAMT_PAY_TLMT_END_DT': requirements[2],
             "gameCnt": cnt
         }
 
@@ -255,6 +333,113 @@ class Lotto645:
             "searchEndDate": today_str
         }
 
+    def get_my_last_week_numbers(self, auth_ctrl: auth.AuthController) -> list:
+        """지난주 구매한 모든 번호를 반환 (중복 포함)"""
+        assert type(auth_ctrl) == auth.AuthController
+
+        headers = self._generate_req_headers(auth_ctrl)
+        parameters = self._make_search_date()
+
+        data = {
+            "nowPage": 1,
+            "searchStartDate": parameters["searchStartDate"],
+            "searchEndDate": parameters["searchEndDate"],
+            "winGrade": "",  # 모든 등급
+            "lottoId": "LO40",
+            "sortOrder": "DESC"
+        }
+
+        all_numbers = []
+
+        try:
+            res = self.http_client.post(
+                "https://dhlottery.co.kr/myPage.do?method=lottoBuyList",
+                headers=headers,
+                data=data
+            )
+
+            html = res.text
+            soup = BS(html, "html5lib")
+
+            # 구매 이력 테이블 찾기
+            table = soup.find("table", class_="tbl_data tbl_data_col")
+            if not table:
+                return all_numbers
+
+            # 각 구매 내역 처리
+            tbody = table.find("tbody")
+            if not tbody:
+                return all_numbers
+
+            rows = tbody.find_all("tr")
+            for row in rows:
+                cols = row.find_all("td")
+                if len(cols) < 4:
+                    continue
+
+                # 상세 정보 링크 추출
+                detail_link = cols[3].find("a")
+                if not detail_link:
+                    continue
+
+                href = detail_link.get("href")
+                if not href:
+                    continue
+
+                # orderNo, barcode, issueNo 추출
+                params = href.split("'")[1::2]
+                if len(params) < 3:
+                    continue
+
+                order_no, barcode, issue_no = params
+                url = f"https://dhlottery.co.kr/myPage.do?method=lotto645Detail&orderNo={order_no}&barcode={barcode}&issueNo={issue_no}"
+
+                response = self.http_client.get(url)
+                detail_soup = BS(response.text, "html5lib")
+
+                # 번호 추출
+                for li in detail_soup.select("div.selected li"):
+                    nums = li.select("div.nums > span")
+                    for num in nums:
+                        ball = num.find("span", class_="ball_645")
+                        if ball:
+                            number = int(ball.text.strip())
+                            all_numbers.append(number)
+
+        except Exception as e:
+            print(f"Error fetching last week numbers: {e}")
+
+        return all_numbers
+
+    def get_winning_numbers(self, round_no: int) -> dict:
+        """특정 회차의 당첨 번호 조회"""
+        try:
+            url = f"https://www.dhlottery.co.kr/common.do?method=getLottoNumber&drwNo={round_no}"
+            res = self.http_client.get(url)
+            data = json.loads(res.text)
+
+            if data.get("returnValue") != "success":
+                return {"numbers": [], "bonus": None}
+
+            numbers = [
+                int(data.get("drwtNo1", 0)),
+                int(data.get("drwtNo2", 0)),
+                int(data.get("drwtNo3", 0)),
+                int(data.get("drwtNo4", 0)),
+                int(data.get("drwtNo5", 0)),
+                int(data.get("drwtNo6", 0))
+            ]
+            bonus = int(data.get("bnusNo", 0))
+
+            return {
+                "numbers": numbers,
+                "bonus": bonus,
+                "all": numbers + [bonus]
+            }
+        except Exception as e:
+            print(f"Error fetching winning numbers: {e}")
+            return {"numbers": [], "bonus": None, "all": []}
+
     def _show_result(self, body: dict) -> None:
         assert type(body) == dict
 
@@ -262,5 +447,5 @@ class Lotto645:
             return
 
         result = body.get("result", {})
-        if result.get("resultMsg", "FAILURE").upper() != "SUCCESS":    
+        if result.get("resultMsg", "FAILURE").upper() != "SUCCESS":
             return
