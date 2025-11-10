@@ -32,38 +32,38 @@ def check_winning_win720(authCtrl: auth.AuthController) -> dict:
     item = pension.check_winning(authCtrl)
     return item
 
-def send_message(mode: int, lottery_type: int, response: dict, webhook_url: str):
+def send_message(mode: int, lottery_type: int, response: dict, webhook_url: str, username: str = None):
     notify = notification.Notification()
 
     if mode == 0:
         if lottery_type == 0:
-            notify.send_lotto_winning_message(response, webhook_url)
+            notify.send_lotto_winning_message(response, webhook_url, username)
         else:
-            notify.send_win720_winning_message(response, webhook_url)
-    elif mode == 1: 
+            notify.send_win720_winning_message(response, webhook_url, username)
+    elif mode == 1:
         if lottery_type == 0:
-            notify.send_lotto_buying_message(response, webhook_url)
+            notify.send_lotto_buying_message(response, webhook_url, username)
         else:
-            notify.send_win720_buying_message(response, webhook_url)
+            notify.send_win720_buying_message(response, webhook_url, username)
 
 def check():
     load_dotenv()
 
     username = os.environ.get('USERNAME')
     password = os.environ.get('PASSWORD')
-    slack_webhook_url = os.environ.get('SLACK_WEBHOOK_URL') 
+    slack_webhook_url = os.environ.get('SLACK_WEBHOOK_URL')
     discord_webhook_url = os.environ.get('DISCORD_WEBHOOK_URL')
 
     globalAuthCtrl = auth.AuthController()
     globalAuthCtrl.login(username, password)
-    
+
     response = check_winning_lotto645(globalAuthCtrl)
-    send_message(0, 0, response=response, webhook_url=discord_webhook_url)
+    send_message(0, 0, response=response, webhook_url=discord_webhook_url, username=username)
 
     time.sleep(10)
-    
+
     response = check_winning_win720(globalAuthCtrl)
-    send_message(0, 1, response=response, webhook_url=discord_webhook_url)
+    send_message(0, 1, response=response, webhook_url=discord_webhook_url, username=username)
 
 def buy():
 
@@ -80,18 +80,18 @@ def buy():
     # SUPERSTITION: 미신 전략 (지난주 구매번호 제외 + 당첨번호 고정)
     mode = os.environ.get('LOTTO_STRATEGY', 'AUTO').upper()
 
-    print(f"[구매 시작] 전략 모드: {mode}")
+    print(f"[구매 시작] 사용자: {username}, 전략 모드: {mode}")
 
     globalAuthCtrl = auth.AuthController()
     globalAuthCtrl.login(username, password)
 
     response = buy_lotto645(globalAuthCtrl, count, mode)
-    send_message(1, 0, response=response, webhook_url=discord_webhook_url)
+    send_message(1, 0, response=response, webhook_url=discord_webhook_url, username=username)
 
     time.sleep(10)
 
     response = buy_win720(globalAuthCtrl, username)
-    send_message(1, 1, response=response, webhook_url=discord_webhook_url)
+    send_message(1, 1, response=response, webhook_url=discord_webhook_url, username=username)
 
 def run():
     if len(sys.argv) < 2:
