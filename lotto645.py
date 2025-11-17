@@ -236,6 +236,15 @@ class Lotto645:
 
         headers["Content-Type"]  = "application/x-www-form-urlencoded; charset=UTF-8"
 
+        # 디버깅: 요청 데이터 로깅
+        print(f"\n[구매 요청] 전송 데이터:")
+        for key, value in data.items():
+            if key == "param":
+                param_preview = str(value)[:300] + "..." if len(str(value)) > 300 else str(value)
+                print(f"  {key}: {param_preview}")
+            else:
+                print(f"  {key}: {value}")
+
         res = self.http_client.post(
             "https://ol.dhlottery.co.kr/olotto/game/execBuy.do",
             headers=headers,
@@ -244,26 +253,31 @@ class Lotto645:
         res.encoding = "utf-8"
 
         # 디버깅: 응답 로깅
-        print(f"[구매 응답] HTTP 상태 코드: {res.status_code}")
+        print(f"\n[구매 응답] HTTP 상태 코드: {res.status_code}")
         print(f"[구매 응답] Content-Type: {res.headers.get('Content-Type', 'N/A')}")
+
+        # JSON이 아닌 경우 HTML 에러 페이지 전체 출력
+        if 'application/json' not in res.headers.get('Content-Type', ''):
+            print(f"\n[구매 응답 에러] ⚠️ JSON이 아닌 응답 수신! (서버가 요청을 거부함)")
+            print(f"[구매 응답 에러] 응답 전체 내용:")
+            print("=" * 80)
+            print(res.text)
+            print("=" * 80)
 
         try:
             response_json = json.loads(res.text)
-            print(f"[구매 응답] JSON 파싱 성공: {response_json}")
+            print(f"[구매 응답] JSON 파싱 성공")
             return response_json
         except json.JSONDecodeError as e:
-            print(f"[구매 응답 에러] JSON 파싱 실패!")
-            print(f"[구매 응답 에러] 에러 메시지: {e}")
-            print(f"[구매 응답 에러] 응답 본문 (처음 500자):")
-            print(res.text[:500])
+            print(f"\n[구매 응답 에러] JSON 파싱 실패: {e}")
 
             # 에러 응답 반환 (알림이 가도록)
             return {
                 "loginYn": "Y",
                 "result": {
                     "resultMsg": "FAILURE",
-                    "failMsg": f"서버 응답 파싱 실패: {e}",
-                    "serverResponse": res.text[:200]
+                    "failMsg": f"서버가 요청을 거부 (수동 번호 형식 오류 가능)",
+                    "serverResponse": res.text[:500]
                 }
             }
 
