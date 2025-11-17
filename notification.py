@@ -5,18 +5,31 @@ class Notification:
     def send_lotto_buying_message(self, body: dict, webhook_url: str, username: str = None) -> None:
         assert type(webhook_url) == str
 
-        result = body.get("result", {})
-        if result.get("resultMsg", "FAILURE").upper() != "SUCCESS":
-            return
-
-        lotto_number_str = self.make_lotto_number_message(result["arrGameChoiceNum"])
-
         # 사용자 ID 표시 (앞 3자리 + *** 마스킹)
         user_display = ""
         if username:
             masked_id = username[:3] + "***" if len(username) > 3 else username
             user_display = f"👤 **{masked_id}** | "
 
+        result = body.get("result", {})
+        result_msg = result.get("resultMsg", "FAILURE").upper()
+
+        # 구매 실패 시 에러 메시지 전송
+        if result_msg != "SUCCESS":
+            fail_reason = result.get("failMsg", "알 수 없는 오류")
+            server_response = result.get("serverResponse", "")
+
+            message = f"{user_display}⚠️ **로또 구매 실패** ⚠️\n"
+            message += f"```\n원인: {fail_reason}\n"
+            if server_response:
+                message += f"서버 응답: {server_response}\n"
+            message += "```"
+
+            self._send_discord_webhook(webhook_url, message)
+            return
+
+        # 구매 성공 시 정상 메시지
+        lotto_number_str = self.make_lotto_number_message(result["arrGameChoiceNum"])
         message = f"{user_display}{result['buyRound']}회 로또 구매 완료 :moneybag: 남은잔액 : {body['balance']}\n```{lotto_number_str}```"
         self._send_discord_webhook(webhook_url, message)
 
@@ -36,18 +49,22 @@ class Notification:
 
     def send_win720_buying_message(self, body: dict, webhook_url: str, username: str = None) -> None:
 
-        if body.get("resultCode") != '100':
-            return
-
-        win720_round = body.get("resultMsg").split("|")[3]
-
-        win720_number_str = self.make_win720_number_message(body.get("saleTicket"))
-
         # 사용자 ID 표시 (앞 3자리 + *** 마스킹)
         user_display = ""
         if username:
             masked_id = username[:3] + "***" if len(username) > 3 else username
             user_display = f"👤 **{masked_id}** | "
+
+        # 구매 실패 시 에러 메시지 전송
+        if body.get("resultCode") != '100':
+            result_msg = body.get("resultMsg", "알 수 없는 오류")
+            message = f"{user_display}⚠️ **연금복권 구매 실패** ⚠️\n```\n원인: {result_msg}\n```"
+            self._send_discord_webhook(webhook_url, message)
+            return
+
+        # 구매 성공 시 정상 메시지
+        win720_round = body.get("resultMsg").split("|")[3]
+        win720_number_str = self.make_win720_number_message(body.get("saleTicket"))
 
         message = f"{user_display}{win720_round}회 연금복권 구매 완료 :moneybag: 남은잔액 : {body['balance']}\n```\n{win720_number_str}```"
         self._send_discord_webhook(webhook_url, message)

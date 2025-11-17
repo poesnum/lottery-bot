@@ -242,7 +242,30 @@ class Lotto645:
             data=data,
         )
         res.encoding = "utf-8"
-        return json.loads(res.text)
+
+        # 디버깅: 응답 로깅
+        print(f"[구매 응답] HTTP 상태 코드: {res.status_code}")
+        print(f"[구매 응답] Content-Type: {res.headers.get('Content-Type', 'N/A')}")
+
+        try:
+            response_json = json.loads(res.text)
+            print(f"[구매 응답] JSON 파싱 성공: {response_json}")
+            return response_json
+        except json.JSONDecodeError as e:
+            print(f"[구매 응답 에러] JSON 파싱 실패!")
+            print(f"[구매 응답 에러] 에러 메시지: {e}")
+            print(f"[구매 응답 에러] 응답 본문 (처음 500자):")
+            print(res.text[:500])
+
+            # 에러 응답 반환 (알림이 가도록)
+            return {
+                "loginYn": "Y",
+                "result": {
+                    "resultMsg": "FAILURE",
+                    "failMsg": f"서버 응답 파싱 실패: {e}",
+                    "serverResponse": res.text[:200]
+                }
+            }
 
     def check_winning(self, auth_ctrl: auth.AuthController) -> dict:
         assert type(auth_ctrl) == auth.AuthController
@@ -443,9 +466,25 @@ class Lotto645:
     def _show_result(self, body: dict) -> None:
         assert type(body) == dict
 
+        print(f"[구매 결과 확인] 전체 응답: {body}")
+
         if body.get("loginYn") != "Y":
+            print(f"[구매 실패] 로그인 상태 아님: loginYn={body.get('loginYn')}")
             return
 
         result = body.get("result", {})
-        if result.get("resultMsg", "FAILURE").upper() != "SUCCESS":
+        result_msg = result.get("resultMsg", "FAILURE").upper()
+
+        if result_msg != "SUCCESS":
+            print(f"[구매 실패] resultMsg={result_msg}")
+            print(f"[구매 실패] 상세 정보: {result}")
+
+            # 실패 원인 출력
+            if "failMsg" in result:
+                print(f"[구매 실패] 실패 메시지: {result['failMsg']}")
+            if "serverResponse" in result:
+                print(f"[구매 실패] 서버 응답: {result['serverResponse']}")
+
             return
+
+        print(f"[구매 성공] 로또 구매가 완료되었습니다!")
