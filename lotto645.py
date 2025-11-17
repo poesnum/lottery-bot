@@ -153,9 +153,11 @@ class Lotto645:
             selected_numbers = [fixed_number] + random.sample(remaining_pool, 5)
             selected_numbers.sort()
 
+            # 동행복권 API는 arrGameChoiceNum을 문자열로 받습니다
+            # 예: "7,18,21,22,26,42" (리스트가 아님!)
             games.append({
                 "genType": "1",  # 수동 모드
-                "arrGameChoiceNum": selected_numbers,
+                "arrGameChoiceNum": ",".join(map(str, selected_numbers)),  # ← 문자열로 변환!
                 "alpabet": SLOTS[i]
             })
 
