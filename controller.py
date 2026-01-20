@@ -14,7 +14,7 @@ def buy_lotto645(authCtrl: auth.AuthController, cnt: int, mode: str):
     lotto = lotto645.Lotto645()
     _mode = lotto645.Lotto645Mode[mode.upper()]
     response = lotto.buy_lotto645(authCtrl, cnt, _mode)
-    response['balance'] = lotto.get_balance(auth_ctrl=authCtrl)
+    response['balance'] = authCtrl.get_user_balance()
     return response
 
 def check_winning_lotto645(authCtrl: auth.AuthController) -> dict:
@@ -25,7 +25,7 @@ def check_winning_lotto645(authCtrl: auth.AuthController) -> dict:
 def buy_win720(authCtrl: auth.AuthController, username: str):
     pension = win720.Win720()
     response = pension.buy_Win720(authCtrl, username)
-    response['balance'] = pension.get_balance(auth_ctrl=authCtrl)
+    response['balance'] = authCtrl.get_user_balance()
     return response
 
 def check_winning_win720(authCtrl: auth.AuthController) -> dict:
@@ -48,7 +48,7 @@ def send_message(mode: int, lottery_type: int, response: dict, webhook_url: str,
             notify.send_win720_buying_message(response, webhook_url, username)
 
 def check():
-    load_dotenv()
+    load_dotenv(override=True)
 
     # 서버 부하 분산을 위한 랜덤 딜레이 (0~300초, 즉 0~5분)
     # 많은 사용자가 동시에 사용해도 트래픽이 분산됩니다
@@ -74,7 +74,7 @@ def check():
 
 def buy():
 
-    load_dotenv()
+    load_dotenv(override=True)
 
     # 서버 부하 분산을 위한 랜덤 딜레이 (0~300초, 즉 0~5분)
     # 많은 사용자가 동시에 사용해도 트래픽이 분산됩니다
@@ -102,6 +102,9 @@ def buy():
     send_message(1, 0, response=response, webhook_url=discord_webhook_url, username=username)
 
     time.sleep(10)
+
+    globalAuthCtrl.http_client.session.cookies.clear()
+    globalAuthCtrl.login(username, password)
 
     response = buy_win720(globalAuthCtrl, username)
     send_message(1, 1, response=response, webhook_url=discord_webhook_url, username=username)
