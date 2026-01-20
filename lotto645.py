@@ -457,7 +457,7 @@ class Lotto645:
         assert type(auth_ctrl) == auth.AuthController
 
         headers = self._generate_req_headers(auth_ctrl)
-        parameters = self._make_search_date()
+        parameters = common.get_search_date_range()
 
         data = {
             "nowPage": 1,
