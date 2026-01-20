@@ -377,11 +377,15 @@ class Lotto645:
                 
                 if "회" in round_no:
                     round_no = round_no.replace("회", "")
-                
-                if money == "0" or money == 0:
-                     money = "0 원"
+
+                # money가 None, 빈 문자열, "-", 0, "0" 등인 경우 처리
+                if not money or money == "-" or money == "0" or money == 0:
+                    money = "0 원"
                 else:
-                    money = f"{int(money):,} 원"
+                    try:
+                        money = f"{int(money):,} 원"
+                    except (ValueError, TypeError):
+                        money = "-"
 
                 result_data = {
                     "round": round_no,
